@@ -131,7 +131,7 @@ class rxThread(threading.Thread):
 
 def registerEthCallback(callback_func: Callable[[ctypes.c_void_p,pcap_pkthdr,bytes],None], ethertype:int) -> None:
     '''
-        Nombre: registerCallback
+        Nombre: registerEthCallback
         Descripción: Esta función recibirá el nombre de una función y su valor de ethertype asociado y añadirá en la tabla 
             (diccionario) de protocolos de nivel superior el dicha asociación. 
             Este mecanismo nos permite saber a qué función de nivel superior debemos llamar al recibir una trama de determinado tipo. 
