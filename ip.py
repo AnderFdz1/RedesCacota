@@ -9,6 +9,8 @@ from ethernet import *
 from arp import *
 from fcntl import ioctl
 import subprocess
+import logging
+
 SIOCGIFMTU = 0x8921
 SIOCGIFNETMASK = 0x891b
 #Diccionario de protocolos. Las claves con los valores numéricos de protocolos de nivel superior a IP
@@ -18,6 +20,34 @@ protocols={}
 IP_MIN_HLEN = 20
 #Tamaño máximo de la cabecera IP
 IP_MAX_HLEN = 60
+
+# IP ethertype
+IP_ETHERTYPE = 0x0800
+# Pair number
+PAIR_NUM = 0x0006
+# Maximum IP options length.
+IP_OPTS_MAX_LEN = IP_MAX_HLEN - IP_MIN_HLEN
+
+class IPv4Datagram:
+    def __init__(self, version, ihl, srv_type, length, id, zero=False, df, mf, offset, tm_to_live, prtcl, chcksum, src, dest, opts, pl):
+        self.version = version
+        self.ihl = ihl
+        self.srv_type = srv_type
+        self.length = length
+        self.ipid = id
+        self.zero = zero
+        self.do_not_fragment = df
+        self.more_fragments = mf
+        self.offset = offset
+        self.time_to_live = tm_to_live
+        self.protocol = prtcl
+        self.checksum = chcksum
+        self.src_address = src
+        self.dest_address = dest
+        self.options = opts
+        self.payload = pl
+
+
 def chksum(msg):
     '''
         Nombre: chksum
@@ -90,9 +120,82 @@ def getDefaultGW(interface):
     print(dfw)
     return struct.unpack('!I',socket.inet_aton(dfw))[0]
 
+def __valid_checksum(hdr, obtained) -> tuple:
+    header_bytes = bytearray(hdr)               # Copy header.
+    
+    # Remove previous checksum from cpoy.
+    header_bytes[10] = 0
+    header_bytes[11] = 0
 
+    ret = chksum(header_bytes)
+    return (ret == obtained, ret)
 
-def process_IP_datagram(us,header,data,srcMac):
+def __parse_IP_datagram(data):
+    # Get fields (Some are combined).
+    try:
+        (ver_and_ihl, srv_type, length, id, flags_and_offset, tm_to_live, prtcl, chcksum, src, dest) = struct.unpack('!BBHHHBBHII', data[:20])
+    except struct.error:
+        return None
+    
+    # Version must be IPv4.
+    version = ver_and_ihl >> 4
+    if version != 0x04 :
+        return None
+    
+    # Minimum IHL must be 20 (after multiplication).
+    ihl = (ver_and_ihl & 0x0F) << 2
+    if ihl < IP_MIN_HLEN:
+        return None
+
+    # Checksum.
+    hdr = data[:ihl]
+    valid, calculated = __valid_checksum(hdr, chcksum)
+    if not valid:
+        logging.debug('IP checksum mismatch: expected: %04x; obtained: %04x' % (calculated, chcksum))
+        return None
+    
+    # Obtain flags and offset.
+    flags = flags_and_offset >> 13
+
+    # Check reserved bit.
+    if (flags >> 2) == 1:
+        # Zero field must be 0 (False) -> (Default in constructor).
+        return None
+    
+    # Flags.
+    df = ((flags & 0x2) >> 1) == 1
+    mf = (flags & 0x1) == 1
+
+    # Offset.
+    offset = flags_and_offset & 0x1FFF
+
+    # Options.
+    opts = data[IP_MIN_HLEN:ihl]
+
+    # Payload.
+    pl = data[ihl:length]
+
+    # Return the datagram.
+    return IPv4Datagram(version, ihl, srv_type, length, id, df, mf, offset, tm_to_live, prtcl, chcksum, src, dest, opts, pl)
+
+def __log_IP_datagram(datagram: IPv4Datagram):
+    logging.debug(
+        "\n+-----------------------------------------------------------------------------+\n"
+        "IP Datagram\n"
+        "+-----------------------------------------------------------------------------+\n"
+        f"IHL={datagram.ihl}, \n"
+        f"IPID={datagram.ipid}, \n"
+        f"TTL={datagram.time_to_live}, \n"
+        f"DF={datagram.do_not_fragment}, \n"
+        f"MF={datagram.more_fragments}, \n"
+        f"Offset={datagram.offset}, \n"
+        f"Src={socket.inet_ntoa(struct.pack('!I', datagram.src_address))}, \n"
+        f"Dest={socket.inet_ntoa(struct.pack('!I', datagram.dest_address))}, \n"
+        f"Protocol={datagram.protocol}\n"
+        "+-----------------------------------------------------------------------------+\n"
+    )
+
+def process_IP_datagram(us,header,data,srcMac) -> None:
     '''
         Nombre: process_IP_datagram
         Descripción: Esta función procesa datagramas IP recibidos.
@@ -121,12 +224,26 @@ def process_IP_datagram(us,header,data,srcMac):
             -srcMac: MAC origen de la trama Ethernet que se ha recibido
         Retorno: Ninguno
     '''
+    # Check and parse datagram.
+    if len(data) < IP_MIN_HLEN:
+        return
+    datagram: IPv4Datagram = __parse_IP_datagram(data)
+    if datagram is None:
+        # Datagram could not be parsed.
+        return
+    elif datagram.offset != 0 or datagram.more_fragments:
+        # Fragmented datagram.
+        return
+    
+    # Log datagram.
+    __log_IP_datagram(datagram)
 
-
-
-
-
-def registerIPProtocol(callback,protocol):
+    # Process with callback function (if exists).
+    callback = protocols.get(datagram.protocol, default=None)
+    if callback:
+        callback(us, header, datagram.payload, datagram.src_address)
+    
+def registerIPProtocol(callback,protocol) -> None:
     '''
         Nombre: registerIPProtocol
         Descripción: Esta función recibirá el nombre de una función y su valor de protocolo IP asociado y añadirá en la tabla 
@@ -145,11 +262,15 @@ def registerIPProtocol(callback,protocol):
                     -srcIP: dirección IP que ha enviado el datagrama actual.
                 La función no retornará nada. Si un datagrama se quiere descartar basta con hacer un return sin valor y dejará de procesarse.
             -protocol: valor del campo protocolo de IP para el cuál se quiere registrar una función de callback.
-        Retorno: Ninguno 
+        Retorno: Ninguno
     '''
+    global protocols
+    if callback is None or protocol is None :
+        return
+    protocols[protocol] = callback
 
-def initIP(interface,opts=None):
-    global myIP, MTU, netmask, defaultGW,ipOpts
+def initIP(interface,opts=None) -> bool:
+    global myIP, MTU, netmask, defaultGW, ipOpts, IPID
     '''
         Nombre: initIP
         Descripción: Esta función inicializará el nivel IP. Esta función debe realizar, al menos, las siguientes tareas:
@@ -161,12 +282,24 @@ def initIP(interface,opts=None):
                 -Gateway por defecto
             -Almacenar el valor de opts en la variable global ipOpts
             -Registrar a nivel Ethernet (llamando a registerCallback) la función process_IP_datagram con el Ethertype 0x0800
-            -Inicializar el valor de IPID con el número de pareja
+            -Inicializar el valor de + con el número de pareja
         Argumentos:
             -interface: cadena de texto con el nombre de la interfaz sobre la que inicializar ip
             -opts: array de bytes con las opciones a nivel IP a incluir en los datagramas o None si no hay opciones a añadir
         Retorno: True o False en función de si se ha inicializado el nivel o no
     '''
+    if opts:
+        # With options.
+        if len(opts) > IP_OPTS_MAX_LEN:
+            # Options are too long.
+            return False
+
+        pad_len = (4 - (len(opts) % 4)) % 4
+        ipOpts = opts + b'\x00' * pad_len
+    else:
+        # Without options.
+        ipOpts = None
+
     if initARP(interface) != 0:
         return False
     
@@ -174,9 +307,19 @@ def initIP(interface,opts=None):
     MTU = getMTU(interface)
     netmask = getNetmask(interface)
     defaultGW = getDefaultGW(interface)
+    registerEthCallback(process_IP_datagram, IP_ETHERTYPE)
+
+    '''
+    Identification (2 Bytes): Identificador del datagrama IP (también llamado IPID). Este campo es útil cuando hay fragmentación IP.
+    En este caso todos los fragmentos tienen el mismo valor de IPID. Para los envíos, este valor se fija inicialmente al arrancar el
+    nivel IP. En la práctica lo fijaremos al número de pareja (es necesario modificar el código).
+    '''
+    IPID = PAIR_NUM
+
+    return True
 
 def sendIPDatagram(dstIP,data,protocol):
-    global IPID
+    global IPID, ipOpts, MTU, myIP, netmask, defaultGW
     '''
         Nombre: sendIPDatagram
         Descripción: Esta función construye un datagrama IP y lo envía. En caso de que los datos a enviar sean muy grandes la función
@@ -198,9 +341,6 @@ def sendIPDatagram(dstIP,data,protocol):
             -protocol: valor numérico del campo IP protocolo que indica el protocolo de nivel superior de los datos
             contenidos en el payload. Por ejemplo 1, 6 o 17.
         Retorno: True o False en función de si se ha enviado el datagrama correctamente o no
-          
     '''
-    ip_header = bytes()
-
-
-
+    ihl = IP_MIN_HLEN + (len(ipOpts) if ipOpts else 0)
+    
