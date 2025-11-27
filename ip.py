@@ -16,26 +16,33 @@ SIOCGIFNETMASK = 0x891b
 #Diccionario de protocolos. Las claves con los valores numéricos de protocolos de nivel superior a IP
 #por ejemplo (1, 6 o 17) y los valores son los nombres de las funciones de callback a ejecutar.
 protocols={}
+# IPv4 version.
+IPv4_VERSION = 0x04
 #Tamaño mínimo de la cabecera IP
 IP_MIN_HLEN = 20
 #Tamaño máximo de la cabecera IP
 IP_MAX_HLEN = 60
-
 # IP ethertype
 IP_ETHERTYPE = 0x0800
+# Default type of service.
+TYPE_OF_SERVICE = 1
+# Default time to live.
+TIME_TO_LIVE = 65
 # Pair number
 PAIR_NUM = 0x0006
 # Maximum IP options length.
 IP_OPTS_MAX_LEN = IP_MAX_HLEN - IP_MIN_HLEN
+# Header struct format.
+__IP_HDR_FORMAT = '!BBHHHBBHII'
 
 class IPv4Datagram:
-    def __init__(self, version, ihl, srv_type, length, id, zero=False, df, mf, offset, tm_to_live, prtcl, chcksum, src, dest, opts, pl):
+    def __init__(self, version, ihl, srv_type, length, id, df, mf, offset, tm_to_live, prtcl, chcksum, src, dest, opts, pl):
+
         self.version = version
         self.ihl = ihl
         self.srv_type = srv_type
         self.length = length
         self.ipid = id
-        self.zero = zero
         self.do_not_fragment = df
         self.more_fragments = mf
         self.offset = offset
@@ -47,6 +54,33 @@ class IPv4Datagram:
         self.options = opts
         self.payload = pl
 
+    def build_header(self, checksum=0):
+        # Flags and offset.
+        flags = ((0 << 2) | (self.do_not_fragment << 1) | self.more_fragments)
+        flags_and_offset = (flags << 13) | (self.offset >> 3)
+
+        # Complete IP header.
+        header = struct.pack(
+            __IP_HDR_FORMAT,
+            (self.version << 4) | (self.ihl >> 2),
+            self.srv_type,
+            self.length,
+            self.ipid,
+            flags_and_offset,
+            self.time_to_live,
+            self.protocol,
+            checksum,
+            self.src_address,
+            self.dest_address
+        )
+        if self.options:
+            header += self.options
+        return header
+
+    def compute_checksum(self):
+        hdr = self.build_header(checksum=0)
+        self.checksum = chksum(hdr)         # Update checksum.
+        return self.checksum
 
 def chksum(msg):
     '''
@@ -133,13 +167,13 @@ def __valid_checksum(hdr, obtained) -> tuple:
 def __parse_IP_datagram(data):
     # Get fields (Some are combined).
     try:
-        (ver_and_ihl, srv_type, length, id, flags_and_offset, tm_to_live, prtcl, chcksum, src, dest) = struct.unpack('!BBHHHBBHII', data[:20])
+        (ver_and_ihl, srv_type, length, id, flags_and_offset, tm_to_live, prtcl, chcksum, src, dest) = struct.unpack(__IP_HDR_FORMAT, data[:20])
     except struct.error:
         return None
     
     # Version must be IPv4.
     version = ver_and_ihl >> 4
-    if version != 0x04 :
+    if version != IPv4_VERSION :
         return None
     
     # Minimum IHL must be 20 (after multiplication).
@@ -167,7 +201,7 @@ def __parse_IP_datagram(data):
     mf = (flags & 0x1) == 1
 
     # Offset.
-    offset = flags_and_offset & 0x1FFF
+    offset = (flags_and_offset & 0x1FFF) << 3
 
     # Options.
     opts = data[IP_MIN_HLEN:ihl]
@@ -342,5 +376,62 @@ def sendIPDatagram(dstIP,data,protocol):
             contenidos en el payload. Por ejemplo 1, 6 o 17.
         Retorno: True o False en función de si se ha enviado el datagrama correctamente o no
     '''
+    # Get sizes (Header and payload).
     ihl = IP_MIN_HLEN + (len(ipOpts) if ipOpts else 0)
+    max_pl = MTU - ihl
+
+    # Divide the payload.
+    fragments: list = [data[i:i + max_pl] for i in range(0, len(data), max_pl)]
     
+    # Creat IPv4Datagram to simplify the process.
+    to_send: IPv4Datagram = IPv4Datagram(
+        IPv4_VERSION,                                           # IPv4.
+        ihl,                                                    # IP header length.
+        TYPE_OF_SERVICE,                                        # Type of service.
+        0,                                                      # Total length. 
+        IPID,                                                   # IP ID.
+        False,                                                  # Don't fragment flag.                                              
+        True,                                                   # More fragments flag.
+        0,                                                      # Offset.
+        TIME_TO_LIVE,                                           # Time to live.
+        protocol,                                               # Protocol.
+        0,                                                      # Checksum.
+        myIP,                                                   # Origin IP.
+        dstIP,                                                  # Destination IP.
+        ipOpts,                                                 # IP options.
+        None                                                    # Payload.
+    )
+
+    # Send IP fragments.
+    dstMAC = None
+    for i, frgmnt in enumerate(fragments):
+        # Update datagram.
+        to_send.payload = frgmnt
+        to_send.length = ihl + len(frgmnt)
+        to_send.offset = (i * max_pl) >> 3
+
+        # Last fragment.
+        if i == len(fragments) - 1:
+            to_send.more_fragments = False
+        
+        # Update checksum.
+        to_send.compute_checksum()
+
+        # Build datagram.
+        datagram = to_send.build_header(checksum=to_send.checksum) + frgmnt
+
+        # Get MAC address.
+        if dstMAC is None:
+            # Check whether to use GateWay or send directly.
+            nxt_ip = dstIP if (dstIP & netmask) == (myIP & netmask) else defaultGW
+            
+            # ARP resolution.
+            dstMAC = ARPResolution(nxt_ip)
+            if dstMAC == None:
+                return False
+        
+        # Send datagram.
+        if sendEthernetFrame(datagram, len(datagram), IP_ETHERTYPE, dstMAC) != 0:
+            return False
+        
+    return True
