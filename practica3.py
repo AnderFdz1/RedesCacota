@@ -22,8 +22,8 @@ import socket
 DST_PORT = 53
 ICMP_ECHO_REQUEST_TYPE = 8
 ICMP_ECHO_REQUEST_CODE = 0
-# TODO: Cambiar ICMP_ID según enunciado
-ICMP_ID = 0
+# NOTE: Cambiar ICMP_ID según enunciado
+ICMP_ID = 6
 
 ipRROption = bytes([7,11,4,0,0,0,0,0,0,0,0,0])
 

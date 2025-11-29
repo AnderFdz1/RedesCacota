@@ -6,17 +6,89 @@
     2022 EPS-UAM
 '''
 from ip import *
+import time
 from threading import Lock
 import struct
 
 ICMP_PROTO = 1
 
-
 ICMP_ECHO_REQUEST_TYPE = 8
 ICMP_ECHO_REPLY_TYPE = 0
 
+ICMP_HDR_FORMAT = '!BBHHH'
+ICMP_HLEN = 8
+
 timeLock = Lock()
 icmp_send_times = {}
+
+class ICMPDatagram:
+    def __init__(self, type, code, chcksm, id, seq, data):
+        self.type = type
+        self.code = code
+        self.checksum = chcksm
+        self.identifier = id
+        self.seq_num = seq
+        self.payload = data
+
+    def build_header(self, checksum = 0):
+        return struct.pack(
+            ICMP_HDR_FORMAT,
+            self.type,
+            self.code,
+            checksum,
+            self.seq_num,
+            self.identifier
+        )
+
+    def to_bytes(self, checksum = 0):
+        return self.build_header(checksum) + self.payload
+    
+def __parse_ICMP_datagram(data):
+    # Get fields (Some are combined).
+    try:
+        (type, code, chcksm, id, seq) = struct.unpack(ICMP_HDR_FORMAT, data[:ICMP_HLEN])
+    except struct.error:
+        return None
+    
+    # Build ICMPDatagram object.
+    return ICMPDatagram(type, code, chcksm, id, seq, data[ICMP_HLEN:])
+
+def __log_ICMP_datagram(datagram: ICMPDatagram):
+    logging.debug(
+        "\n+-----------------------------------------------------------------------------+\n"
+        "ICMP Datagram\n"
+        "+-----------------------------------------------------------------------------+\n"
+        f"Type={datagram.type}, \n"
+        f"Code={datagram.code}  \n"
+        "+-----------------------------------------------------------------------------+\n"
+    )
+
+def __process_ICMP_echo_request(us, header, datagram: ICMPDatagram, srcIp):
+    # Send echo reply.
+    sendICMPMessage(datagram.data, ICMP_ECHO_REPLY_TYPE, 1, datagram.identifier, datagram.seq_num, srcIp)
+
+def __process_ICMP_echo_reply(us, header, datagram: ICMPDatagram, srcIp):
+    # Get arrival time and key for dictionary.
+    key = (srcIp, datagram.identifier, datagram.seq_num)
+
+    # Access dictionary.
+    with timeLock:
+        if key in icmp_send_times:
+            # Get times.
+            snd_time = icmp_send_times[key]
+            rcv_time = header.ts.tv_sec + (header.ts.tv_usec / 1000000.0)
+
+            # Get RTT.
+            rtt = (rcv_time - snd_time) * 1000
+        
+            # Print.
+            ip_str = socket.inet_ntoa(struct.pack('!I', srcIp))
+            print(f'Echo reply sent from {ip_str} in {rtt} ms')
+        
+            # Remove dictionary entry.
+            del icmp_send_times[key]
+        else:
+            logging.debug(f'Unknown entry for key {key}')
 
 def process_ICMP_message(us,header,data,srcIp):
     '''
@@ -47,7 +119,32 @@ def process_ICMP_message(us,header,data,srcIp):
         Retorno: Ninguno
           
     '''
+    if data is None or len(data) < ICMP_HLEN:
+        return
+
+    # Parse datagram.
+    datagram: ICMPDatagram = __parse_ICMP_datagram(data)
+    if datagram is None:
+        return
     
+    # Verify checksum.
+    check_msg = datagram.to_bytes()
+    if len(check_msg) & 1 == 1:
+        check_msg += b'\x00'
+
+    calculated = chksum(check_msg)
+    if calculated != datagram.checksum:
+        logging.debug('ICMP checksum mismatch: expected: %04x; obtained: %04x' % (calculated, datagram.chcksum))
+        return
+
+    # Log datagram.
+    __log_ICMP_datagram(datagram)
+
+    # Process.
+    if datagram.code == ICMP_ECHO_REQUEST_TYPE:
+        __process_ICMP_echo_request(us, header, datagram, srcIp)    # Echo Request.
+    elif datagram.code == ICMP_ECHO_REPLY_TYPE:
+        __process_ICMP_echo_reply(us, header, datagram, srcIp)      # Echo Reply.
 
 def sendICMPMessage(data,type,code,icmp_id,icmp_seqnum,dstIP):
     '''
@@ -78,9 +175,29 @@ def sendICMPMessage(data,type,code,icmp_id,icmp_seqnum,dstIP):
         Retorno: True o False en función de si se ha enviado el mensaje correctamente o no
           
     '''
-  
-    icmp_message = bytes()
-   
+    global timeLock, icmp_send_times
+
+    # Check type.
+    if type != ICMP_ECHO_REQUEST_TYPE and type != ICMP_ECHO_REPLY_TYPE:
+        return False
+
+    # Build datagram.
+    datagram: ICMPDatagram = ICMPDatagram(type, code, 0, icmp_id, icmp_seqnum, data)
+    datagram.checksum = chksum(datagram.to_bytes())
+
+    to_send = datagram.to_bytes(datagram.checksum)
+
+    # Store request time.
+    if type == ICMP_ECHO_REQUEST_TYPE:
+        snd_time = time.time()
+        key = (dstIP, icmp_id, icmp_seqnum)
+
+        with timeLock:
+            icmp_send_times[key] = snd_time
+
+    # Send.
+    return sendIPDatagram(dstIP, to_send, ICMP_PROTO)
+
 def initICMP():
     '''
         Nombre: initICMP
@@ -93,3 +210,4 @@ def initICMP():
         Retorno: Ninguno
           
     '''
+    registerIPProtocol(process_ICMP_message, ICMP_PROTO)

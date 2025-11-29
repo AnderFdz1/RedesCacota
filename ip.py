@@ -76,6 +76,9 @@ class IPv4Datagram:
         if self.options:
             header += self.options
         return header
+    
+    def to_bytes(self):
+        return self.build_header(checksum=self.checksum) + self.payload
 
     def compute_checksum(self):
         hdr = self.build_header(checksum=0)
@@ -418,7 +421,7 @@ def sendIPDatagram(dstIP,data,protocol):
         to_send.compute_checksum()
 
         # Build datagram.
-        datagram = to_send.build_header(checksum=to_send.checksum) + frgmnt
+        datagram = to_send.to_bytes()
 
         # Get MAC address.
         if dstMAC is None:
