@@ -36,8 +36,8 @@ class ICMPDatagram:
             self.type,
             self.code,
             checksum,
-            self.seq_num,
-            self.identifier
+            self.identifier,
+            self.seq_num
         )
 
     def to_bytes(self, checksum = 0):
@@ -134,16 +134,16 @@ def process_ICMP_message(us,header,data,srcIp):
 
     calculated = chksum(check_msg)
     if calculated != datagram.checksum:
-        logging.debug('ICMP checksum mismatch: expected: %04x; obtained: %04x' % (calculated, datagram.chcksum))
+        logging.debug('ICMP checksum mismatch: expected: %04x; obtained: %04x' % (calculated, datagram.checksum))
         return
 
     # Log datagram.
     __log_ICMP_datagram(datagram)
 
     # Process.
-    if datagram.code == ICMP_ECHO_REQUEST_TYPE:
+    if datagram.type == ICMP_ECHO_REQUEST_TYPE:
         __process_ICMP_echo_request(us, header, datagram, srcIp)    # Echo Request.
-    elif datagram.code == ICMP_ECHO_REPLY_TYPE:
+    elif datagram.type == ICMP_ECHO_REPLY_TYPE:
         __process_ICMP_echo_reply(us, header, datagram, srcIp)      # Echo Reply.
 
 def sendICMPMessage(data,type,code,icmp_id,icmp_seqnum,dstIP):

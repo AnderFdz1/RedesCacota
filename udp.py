@@ -1,5 +1,5 @@
 '''
-    icmp.py
+    udp.py
     
     Funciones necesarias para implementar el nivel UDP
     Autor: Javier Ramos <javier.ramos@uam.es>
@@ -67,7 +67,7 @@ def __log_UDP_datagram(datagram: UDPDatagram):
         "+-----------------------------------------------------------------------------+\n"
         f"Source={datagram.src_port}, \n"
         f"Destination={datagram.dst_port}, \n"
-        f"Data={datagram.data}  \n"
+        f"Data={datagram.payload}  \n"
         "+-----------------------------------------------------------------------------+\n"
     )
 

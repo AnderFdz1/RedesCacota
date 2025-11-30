@@ -9,6 +9,7 @@
 
 from udp import *
 from icmp import *
+from ip import PAIR_NUM
 import sys
 import binascii
 import signal
@@ -23,9 +24,11 @@ DST_PORT = 53
 ICMP_ECHO_REQUEST_TYPE = 8
 ICMP_ECHO_REQUEST_CODE = 0
 # NOTE: Cambiar ICMP_ID según enunciado
-ICMP_ID = 6
+ICMP_ID = PAIR_NUM
 
 ipRROption = bytes([7,11,4,0,0,0,0,0,0,0,0,0])
+
+ALPHABET = b'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 if __name__ == "__main__":
 	ICMP_SEQNUM = 0
@@ -36,7 +39,9 @@ if __name__ == "__main__":
 	parser.add_argument('--debug', dest='debug', default=False, action='store_true',help='Activar Debug messages')
 	parser.add_argument('--addOptions', dest='addOptions', default=False, action='store_true',help='Añadir opciones a los datagranas IP')
 	parser.add_argument('--dataFile',dest='dataFile',default = False,help='Fichero con datos a enviar')
-	#TODO: Opción --icmpsize
+	#NOTE: Opción --icmpsize
+	parser.add_argument('--icmpsize',dest='icmpSize',default = 12,help='Tamaño del paquete ICMP. Debe ser mayor que 0.')
+
 	args = parser.parse_args()
 
 	if args.debug:
@@ -54,6 +59,11 @@ if __name__ == "__main__":
 		parser.print_help()
 		sys.exit(-1)
 
+	if args.icmpSize <= 0:
+		logging.error('El tamaño del paquete ICMP debe ser mayor que 0')
+		parser.print_help()
+		sys.exit(-1)
+
 	ipOpts = None
 	if args.addOptions:
 		ipOpts = ipRROption
@@ -66,8 +76,10 @@ if __name__ == "__main__":
 			#Pasamos los datos de cadena a bytes
 			udp_data = data.encode()
 	
-	icmp_data = b'ABCDEFGHIJKL'
-	#TODO: construir mensaje ICMP según opción --icmpsize
+	#NOTE: construir mensaje ICMP según opción --icmpsize
+	iterations = args.icmpSize // len(ALPHABET)
+	rest = args.icmpSize % len(ALPHABET)
+	icmp_data = ALPHABET * iterations + ALPHABET[:rest]
 	
 	startEthernetLevel(args.interface)
 	initICMP()

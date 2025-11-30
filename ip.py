@@ -29,7 +29,7 @@ TYPE_OF_SERVICE = 1
 # Default time to live.
 TIME_TO_LIVE = 65
 # Pair number
-PAIR_NUM = 0x0006
+PAIR_NUM = 6
 # Maximum IP options length.
 IP_OPTS_MAX_LEN = IP_MAX_HLEN - IP_MIN_HLEN
 # Header struct format.
