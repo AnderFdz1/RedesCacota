@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
     ip.py
     
@@ -33,7 +34,7 @@ PAIR_NUM = 6
 # Maximum IP options length.
 IP_OPTS_MAX_LEN = IP_MAX_HLEN - IP_MIN_HLEN
 # Header struct format.
-__IP_HDR_FORMAT = '!BBHHHBBHII'
+IP_HDR_FORMAT = '!BBHHHBBHII'
 
 class IPv4Datagram:
     def __init__(self, version, ihl, srv_type, length, id, df, mf, offset, tm_to_live, prtcl, chcksum, src, dest, opts, pl):
@@ -57,12 +58,12 @@ class IPv4Datagram:
     def build_header(self, checksum=0):
         # Flags and offset.
         flags = ((0 << 2) | (self.do_not_fragment << 1) | self.more_fragments)
-        flags_and_offset = (flags << 13) | (self.offset >> 3)
+        flags_and_offset = (flags << 13) | self.offset
 
         # Complete IP header.
         header = struct.pack(
-            __IP_HDR_FORMAT,
-            (self.version << 4) | (self.ihl >> 2),
+            IP_HDR_FORMAT,
+            (self.version << 4) | (self.ihl // 4),
             self.srv_type,
             self.length,
             self.ipid,
@@ -99,7 +100,8 @@ def chksum(msg):
         if (i+1) < len(msg):
             a = msg[i] 
             b = msg[i+1]
-            s = s + (a+(b << 8))
+            # s = s + (a+(b << 8))      # ping to Google gets incorrect checksum. Now it works.
+            s += (a << 8) + b
         elif (i+1)==len(msg):
             s += msg[i]
         else:
@@ -170,7 +172,7 @@ def __valid_checksum(hdr, obtained) -> tuple:
 def __parse_IP_datagram(data):
     # Get fields (Some are combined).
     try:
-        (ver_and_ihl, srv_type, length, id, flags_and_offset, tm_to_live, prtcl, chcksum, src, dest) = struct.unpack(__IP_HDR_FORMAT, data[:20])
+        (ver_and_ihl, srv_type, length, id, flags_and_offset, tm_to_live, prtcl, chcksum, src, dest) = struct.unpack(IP_HDR_FORMAT, data[:20])
     except struct.error:
         return None
     
@@ -215,7 +217,7 @@ def __parse_IP_datagram(data):
     # Return the datagram.
     return IPv4Datagram(version, ihl, srv_type, length, id, df, mf, offset, tm_to_live, prtcl, chcksum, src, dest, opts, pl)
 
-def __log_IP_datagram(datagram: IPv4Datagram):
+def __log_IP_datagram(datagram):
     logging.debug(
         "\n+-----------------------------------------------------------------------------+\n"
         "IP Datagram\n"
@@ -276,8 +278,8 @@ def process_IP_datagram(us,header,data,srcMac) -> None:
     __log_IP_datagram(datagram)
 
     # Process with callback function (if exists).
-    callback = protocols.get(datagram.protocol, default=None)
-    if callback:
+    if datagram.protocol in protocols:
+        callback = protocols[datagram.protocol]
         callback(us, header, datagram.payload, datagram.src_address)
     
 def registerIPProtocol(callback,protocol) -> None:
@@ -411,7 +413,7 @@ def sendIPDatagram(dstIP,data,protocol):
         # Update datagram.
         to_send.payload = frgmnt
         to_send.length = ihl + len(frgmnt)
-        to_send.offset = (i * max_pl) >> 3
+        to_send.offset = (i * max_pl) // 8
 
         # Last fragment.
         if i == len(fragments) - 1:

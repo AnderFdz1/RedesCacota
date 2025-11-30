@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
     icmp.py
     
@@ -53,7 +54,7 @@ def __parse_ICMP_datagram(data):
     # Build ICMPDatagram object.
     return ICMPDatagram(type, code, chcksm, id, seq, data[ICMP_HLEN:])
 
-def __log_ICMP_datagram(datagram: ICMPDatagram):
+def __log_ICMP_datagram(datagram):
     logging.debug(
         "\n+-----------------------------------------------------------------------------+\n"
         "ICMP Datagram\n"
@@ -63,11 +64,11 @@ def __log_ICMP_datagram(datagram: ICMPDatagram):
         "+-----------------------------------------------------------------------------+\n"
     )
 
-def __process_ICMP_echo_request(us, header, datagram: ICMPDatagram, srcIp):
+def __process_ICMP_echo_request(us, header, datagram, srcIp):
     # Send echo reply.
-    sendICMPMessage(datagram.data, ICMP_ECHO_REPLY_TYPE, 1, datagram.identifier, datagram.seq_num, srcIp)
+    sendICMPMessage(datagram.payload, ICMP_ECHO_REPLY_TYPE, 0, datagram.identifier, datagram.seq_num, srcIp)
 
-def __process_ICMP_echo_reply(us, header, datagram: ICMPDatagram, srcIp):
+def __process_ICMP_echo_reply(us, header, datagram, srcIp):
     # Get arrival time and key for dictionary.
     key = (srcIp, datagram.identifier, datagram.seq_num)
 

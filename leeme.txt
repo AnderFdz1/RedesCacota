@@ -1,30 +1,438 @@
 Autores:    Aarón García García
             Ander Fernández Ramírez
 
-Recibir y enviar datagramas UDP sin opciones IP ni fragmentación
+Recibir y enviar datagramas UDP sin opciones IP ni fragmentación:
+
+Realizado:
+
+    El host 2, tras recibir el paquete enviado desde el host 1, muestra:
+        
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:[2025-11-30 12:55:41,448 DEBUG]
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=20, 
+        IPID=6, 
+        TTL=65, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=10.0.0.1, 
+        Dest=10.0.0.2, 
+        Protocol=17
+        +-----------------------------------------------------------------------------+
+
+        [2025-11-30 12:55:41,448 DEBUG]
+        +-----------------------------------------------------------------------------+
+        UDP Datagram
+        +-----------------------------------------------------------------------------+
+        Source=40759, 
+        Destination=53, 
+        Data=b'\x00\x06\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x03www\x06google\x03com\x00\x00\x01\x00\x01'  
+        +-----------------------------------------------------------------------------+
+
+    Lo cual indica que recibe el paquete correctamente.
+
+    Desde WireShark, además, se muestra que el contenido coincide:
+        
+                          Bytes                                      ASCII
+
+        36 3e 24 5f d4 72 2a f0   94 73 78 29 08 00 45 01         6>$_.4*.   .sx)..E.
+        00 3c 00 06 00 00 41 11   a8 65 0a 00 00 01 0a 00         .<....A.   .e......
+        00 02 9f 37 00 35 00 28   00 00 00 06 01 00 00 01         ...7.5.(   ........
+        00 00 00 00 00 00 03 77   77 77 06 67 6f 6f 67 6c         .......w   ww.googl
+        65 03 63 6f 6d 00 00 01   00 01                           3.com...   ..
 
 
+Recibir y enviar mensajes ICMP sin opciones IP ni fragmentación (incluyendo pruebas con ping estándar):
 
-Recibir y enviar mensajes ICMP sin opciones IP ni fragmentación (incluyendo pruebas con ping estándar)
+Realizado:
 
+    La ejecución en el host 1 muestra lo siguiente:
 
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:1
 
-Enviar y recibir correctamente mensajes ICMP con opciones IP
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:[2025-11-30 11:39:45,076 DEBUG]
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=20, 
+        IPID=6, 
+        TTL=65, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=10.0.0.2, 
+        Dest=10.0.0.1, 
+        Protocol=1
+        +-----------------------------------------------------------------------------+
 
+        [2025-11-30 11:39:45,077 DEBUG]
+        +-----------------------------------------------------------------------------+
+        ICMP Datagram
+        +-----------------------------------------------------------------------------+
+        Type=0, 
+        Code=0  
+        +-----------------------------------------------------------------------------+
 
+        Echo reply sent from 10.0.0.2 in 2047.135829925537 ms
 
-Enviar y recibir mensajes ICMP con un tamaño determinado
+    Mientras que el el host 2 aparece:
 
+        
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:[2025-11-30 11:39:44,048 DEBUG]
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=20, 
+        IPID=6, 
+        TTL=65, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=10.0.0.1, 
+        Dest=10.0.0.2, 
+        Protocol=1
+        +-----------------------------------------------------------------------------+
 
+        [2025-11-30 11:39:44,049 DEBUG]
+        +-----------------------------------------------------------------------------+
+        ICMP Datagram
+        +-----------------------------------------------------------------------------+
+        Type=8, 
+        Code=0  
+        +-----------------------------------------------------------------------------+
 
-Enviar datagramas UDP con fragmentación
+    Como se puede comprobar, tanto el tipo como el código se corresponden con lo esperado:
+    Type=8, Code = 0 en el echo request (host 2), y Type=0, Code = 0 en el echo reply (host 1)
 
+Enviar y recibir correctamente mensajes ICMP con opciones IP:
 
+Realizado:
 
-Enviar datagramas UDP con fragmentación y opciones IP
+    La ejecución en el host 1 muestra lo siguiente:
 
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:1
 
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:[2025-11-30 11:46:28,197 DEBUG]
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=32, 
+        IPID=6, 
+        TTL=65, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=10.0.0.2, 
+        Dest=10.0.0.1, 
+        Protocol=1
+        +-----------------------------------------------------------------------------+
 
-Enviar datagramas UDP fuera de la subred actual
+        [2025-11-30 11:46:28,197 DEBUG]
+        +-----------------------------------------------------------------------------+
+        ICMP Datagram
+        +-----------------------------------------------------------------------------+
+        Type=0, 
+        Code=0  
+        +-----------------------------------------------------------------------------+
 
+        Echo reply sent from 10.0.0.2 in 2052.873134613037 ms
 
+    Mientras que el el host 2 aparece:
+
+        
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:[2025-11-30 11:46:27,170 DEBUG]
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=32, 
+        IPID=6, 
+        TTL=65, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=10.0.0.1, 
+        Dest=10.0.0.2, 
+        Protocol=1
+        +-----------------------------------------------------------------------------+
+
+        [2025-11-30 11:46:27,171 DEBUG]
+        +-----------------------------------------------------------------------------+
+        ICMP Datagram
+        +-----------------------------------------------------------------------------+
+        Type=8, 
+        Code=0  
+        +-----------------------------------------------------------------------------+
+
+    Como se puede comprobar, tanto el tipo como el código se corresponden con lo esperado:
+    Type=8, Code = 0 en el echo request (host 2), y Type=0, Code = 0 en el echo reply (host 1)
+
+Enviar y recibir mensajes ICMP con un tamaño determinado:
+
+Realizado:
+
+    La ejecución en el host 1 muestra lo siguiente:
+    
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:1
+
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:[2025-11-30 12:17:39,216 DEBUG]
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=32, 
+        IPID=6, 
+        TTL=65, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=10.0.0.2, 
+        Dest=10.0.0.1, 
+        Protocol=1
+        +-----------------------------------------------------------------------------+
+
+        [2025-11-30 12:17:39,216 DEBUG]
+        +-----------------------------------------------------------------------------+
+        ICMP Datagram
+        +-----------------------------------------------------------------------------+
+        Type=0, 
+        Code=0  
+        +-----------------------------------------------------------------------------+
+
+        Echo reply sent from 10.0.0.2 in 2027.540683746338 ms
+
+    Mientras que el el host 2 aparece:
+
+    
+                0x16
+                Introduzca opcion:
+                1.Enviar ping
+                2.Enviar datagrama UDP:[2025-11-30 12:17:38,192 DEBUG]
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=20, 
+        IPID=6, 
+        TTL=65, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=10.0.0.1, 
+        Dest=10.0.0.2, 
+        Protocol=1
+        +-----------------------------------------------------------------------------+
+
+        [2025-11-30 12:17:38,192 DEBUG]
+        +-----------------------------------------------------------------------------+
+        ICMP Datagram
+        +-----------------------------------------------------------------------------+
+        Type=8, 
+        Code=0  
+        +-----------------------------------------------------------------------------+
+
+    Por otro lado, en WireShark, el contenido de los paquetes ICMP es:
+
+    Echo Request:
+
+                          Bytes                                      ASCII
+
+    36 3e 24 5f d4 72 2a f0   94 73 78 29 08 00 45 01         6>$_.r*.   .sx)..E.
+    00 58 00 06 00 00 41 01   9c 65 0a 00 00 01 0a 00         .X....A.   .e......
+    00 02 08 00 f1 0c 00 06   00 00 41 42 43 44 45 46         ........   ..ABCDEF
+    47 48 49 4a 4b 4c 4d 4e   4f 50 51 52 53 54 55 56         GHIJKLMN   OPQRSTUV
+    57 58 59 5a 41 42 43 44   45 46 47 48 49 4a 4b 4c         WXYZABCD   EFGHIJKL
+    4d 4e 4f 50 51 52 53 54   55 56 57 58 59 5a 41 42         MNOPQRST   UVWXYZAB
+    43 44 45 46 47 48                                         CDEFGH
+
+    Echo Reply:
+
+                          Bytes                                      ASCII
+
+    2a f0 94 73 78 29 36 3e   24 5f d4 72 08 00 48 01         *..sx)6>   $_.r..H.
+    00 64 00 06 00 00 41 01   85 57 0a 00 00 02 0a 00         .d....A.   .W......
+    00 01 07 0b 04 00 00 00   00 00 00 00 00 00 00 00         ........   ........
+    f1 14 00 06 00 00 41 42   43 44 45 46 47 48 49 4a         ......AB   CDEFGHIJ
+    4b 4c 4d 4e 4f 50 51 52   53 54 55 56 57 58 59 5a         KLMNOPQR   STUVWXYZ
+    41 42 43 44 45 46 47 48   49 4a 4b 4c 4d 4e 4f 50         ABCDEFGH   IJKLMNOP
+    51 52 53 54 55 56 57 58   59 5a 41 42 43 44 45 46         QRSTUVWX   YZABCDEF
+    47 48                                                     GH
+
+    Como se puede ver, el contenido de ambos paquetes es el mismo:
+    
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGH"
+
+Enviar datagramas UDP con fragmentación:
+
+Realizado:
+
+    Al tratarse de un paquete fragmentado, el programa no es capaz de reensamblarlo.
+    Por tanto, se debe revisar en WireShark:
+
+    Se envía el fichero adjunto "mucho_texto.txt" en 18 paquetes de 1514B, que WireSharkç
+    detecta como IPv4 (fragmentado de un paquete UDP).
+
+    El último, sin embargo, es un paquete de 401B, que detecta como malformado. Para comprobar
+    si éste es correcto, es necesario analizar la cabecera:
+
+                          Bytes                                      ASCII
+
+    36 3e 24 5f d4 72 2a f0   94 73 78 29 08 00 45 01         6>$_.r*.   .sx)..E.
+    01 01 83 00 06 01 a0 41   11 c1 62 0a 00 00 01 0a         .......A   ..b.....
+    00 00 02 4b 4c 4d 4e 4f   50 51 52 53 54 55 56 57         ...KLMNO   PQRSTUVW
+    58 59 5a 0a 41 42 43 44   45 46 47 48 49 4a 4b 4c         XYZ.ABCD   EFGHIJKL
+    4d 4e 4f 50 51 52 53 54   55 56 57 58 59 5a 0a 41         MNOPQRST   UVWXYZ.A
+    42 43 44 45 46 47 48 49   4a 4b 4c 4d 4e 4f 50 51         BCDEFGHI   JKLMNOPQ
+    52 53 54 55 56 57 58 59   5a 0a 41 42 43 44 45 46         RSTUVWXY   Z.ABCDEF
+    47 48 49 4a 4b 4c 4d 4e   4f 50 51 52 53 54 55 56         GHIJKLMN   OPQRSTUV
+    57 58 59 5a 0a 41 42 43   44 45 46 47 48 49 4a 4b         WXYZ.ABC   DEFGHIJK
+    4c 4d 4e 4f 50 51 52 53   54 55 56 57 58 59 5a 0a         LMNOPQRS   TUVWXYZ.
+    41 42 43 44 45 46 47 48   49 4a 4b 4c 4d 4e 4f 50         ABCDEFGH   IJKLMNOP
+    51 52 53 54 55 56 57 58   59 5a 0a 41 42 43 44 45         QRSTUVWX   YZ.ABCDE
+    46 47 48 49 4a 4b 4c 4d   4e 4f 50 51 52 53 54 55         FGHIJKLM   NOPQRSTU
+    56 57 58 59 5a 0a 41 42   43 44 45 46 47 48 49 4a         VWXYZ.AB   CDEFGHIJ
+    4b 4c 4d 4e 4f 50 51 52   53 54 55 56 57 58 59 5a         KLMNOPQR   STUVWXYZ
+    0a 41 42 43 44 45 46 47   48 49 4a 4b 4c 4d 4e 4f         .ABCDEFG   HIJKLMNO
+    50 51 52 53 54 55 56 57   58 59 5a                        PQRSTUVW   XYZ
+
+    Del paquete se extraen los siguientes datos:
+
+        Cabecera Ethernet:
+
+        - MAC de destino:       36 3e 24 5f d4 72
+        - MAC de origen:        2a f0 94 73 78 29
+        - Protocolo:            08 00
+
+        Cabecera IP:
+
+        - Versión e IHL:        45                      Versión = 4, IHL = 5
+        - Longitud:             01 01                   257B
+        - Flags y offset:       83 00                   Flags = 010, Offset = 960
+        - IPID:                 06                      IPID = Número de pareja (06)
+        - TTL:                  01
+        - Protocolo:            11                      Protocolo = 17 (UDP)
+        - Checksum:             c1 62
+        - IP de origen:         0a 00 00 01             IP = 10.0.0.1
+        - IP de destino:        0a 00 00 02             IP = 10.0.0.2
+
+        - Contenido:            4b 4c 4d 4e 4f ...      KLMNO...
+
+    Como se puede observar, el paquete es correcto y, si fuera reensamblado, contendría
+    el fichero completo.
+
+Enviar datagramas UDP con fragmentación y opciones IP:
+
+Realizado:
+
+    Como en el caso anterior, el paquete está fragmentado y el programa lo descarta
+    automáticamente, por lo que debe ser analizado con WireShark, que, como antes,
+    detecta el último paquete como malformado:
+
+                          Bytes                                      ASCII
+
+    36 3e 24 5f d4 72 2a f0   94 73 78 29 08 00 48 01         6>$_.r*.   .sx)..H.
+    02 67 00 06 01 9c 41 11   d6 53 0a 00 00 01 0a 00         .g....A.   .S......
+    00 02 07 0b 04 00 00 00   00 00 00 00 00 00 00 00         ........   ........
+    4b 4c 4d 4e 4f 50 51 52   53 54 55 56 57 58 59 5a         KLMNOPQR   STUVWXYZ
+    0a 41 42 43 44 45 46 47   48 49 4a 4b 4c 4d 4e 4f         .ABCDEFG   HIJKLMNO
+    50 51 52 53 54 55 56 57   58 59 5a 0a 41 42 43 44         PQRSTUVW   XYZ.ABCD
+    45 46 47 48 49 4a 4b 4c   4d 4e 4f 50 51 52 53 54         EFGHIJKL   MNOPQRST
+    55 56 57 58 59 5a 0a 41   42 43 44 45 46 47 48 49         UVWXYZ.A   BCDEFGHI
+    4a 4b 4c 4d 4e 4f 50 51   52 53 54 55 56 57 58 59         JKLMNOPQ   RSTUVWXY
+    5a 0a 41 42 43 44 45 46   47 48 49 4a 4b 4c 4d 4e         Z.ABCDEF   GHIJKLMN
+    4f 50 51 52 53 54 55 56   57 58 59 5a 0a 41 42 43         OPQRSTUV   WXYZ.ABC
+    44 45 46 47 48 49 4a 4b   4c 4d 4e 4f 50 51 52 53         DEFGHIJK   LMNOPQRS
+    54 55 56 57 58 59 5a 0a   41 42 43 44 45 46 47 48         TUVWXYZ.   ABCDEFGH
+    49 4a 4b 4c 4d 4e 4f 50   51 52 53 54 55 56 57 58         IJKLMNOP   QRSTUVWX
+    59 5a 0a 41 42 43 44 45   46 47 48 49 4a 4b 4c 4d         YZ.ABCDE   FGHIJKLM
+    4e 4f 50 51 52 53 54 55   56 57 58 59 5a 0a 41 42         NOPQRSTU   VWXYZ.AB
+    43 44 45 46 47 48 49 4a   4b 4c 4d 4e 4f 50 51 52         CDEFGHIJ   KLMNOPQR
+    53 54 55 56 57 58 59 5a   0a 41 42 43 44 45 46 47         STUVWXYZ   .ABCDEFG
+    48 49 4a 4b 4c 4d 4e 4f   50 51 52 53 54 55 56 57         HIJKLMNO   PQRSTUVW
+    58 59 5a 0a 41 42 43 44   45 46 47 48 49 4a 4b 4c         XYZ.ABCD   EFGHIJKL
+    4d 4e 4f 50 51 52 53 54   55 56 57 58 59 5a 0a 41         MNOPQRST   UVWXYZ.A
+    42 43 44 45 46 47 48 49   4a 4b 4c 4d 4e 4f 50 51         BCDEFGHI   JKLMNOPQ
+    52 53 54 55 56 57 58 59   5a 0a 41 42 43 44 45 46         RSTUVWXY   Z.ABCDEF
+    47 48 49 4a 4b 4c 4d 4e   4f 50 51 52 53 54 55 56         GHIJKLMN   OPQRSTUV
+    57 58 59 5a 0a 41 42 43   44 45 46 47 48 49 4a 4b         WXYZ.ABC   DEFGHIJK
+    4c 4d 4e 4f 50 51 52 53   54 55 56 57 58 59 5a 0a         LMNOPQRS   TUVWXYZ.
+    41 42 43 44 45 46 47 48   49 4a 4b 4c 4d 4e 4f 50         ABCDEFGH   IJKLMNOP
+    51 52 53 54 55 56 57 58   59 5a                           QRSTUVWX   YZ
+
+    En este caso cabe destacar que, al añadir opciones, hay menos espacio para el
+    contenido y en la cabecera IP el IHL ya no vale 5, sino que vale 8.
+
+    Las opciones aparecen justo después de las direcciones IP:
+    
+    07 0b 04 00 00 00   00 00 00 00 00 00 00 00
+
+    Así se comprueba que el envío es correcto.
+
+Enviar datagramas UDP fuera de la subred actual:
+
+Realizado:
+
+    Al enviar el ping a la IP 8.8.8.8, se recibe el siguiente echo reply:
+    
+            0x16
+            Introduzca opcion:
+            1.Enviar ping
+            2.Enviar datagrama UDP:1
+
+            0x16
+            Introduzca opcion:
+            1.Enviar ping
+            2.Enviar datagrama UDP:[2025-11-30 15:20:47,340 DEBUG]	
+        +-----------------------------------------------------------------------------+
+        IP Datagram
+        +-----------------------------------------------------------------------------+
+        IHL=20, 
+        IPID=65343, 
+        TTL=128, 
+        DF=False, 
+        MF=False, 
+        Offset=0, 
+        Src=8.8.8.8, 
+        Dest=192.168.110.128, 
+        Protocol=1
+        +-----------------------------------------------------------------------------+
+
+        [2025-11-30 15:20:47,340 DEBUG]	
+        +-----------------------------------------------------------------------------+
+        ICMP Datagram
+        +-----------------------------------------------------------------------------+
+        Type=0, 
+        Code=0  
+        +-----------------------------------------------------------------------------+
+
+        Echo reply sent from 8.8.8.8 in 1036.874532699585 ms
+
+    Se ha tenido que modificar la función checksum proporcionada, sustituyendo:
+
+        s = s + (a+(b << 8))        ->          s += (a << 8) + b

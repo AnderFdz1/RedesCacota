@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
     udp.py
     
@@ -60,7 +61,7 @@ def __parse_UDP_datagram(data):
     # Build UDPDatagram object.
     return UDPDatagram(src_prt, dst_prt, length, chcksm, data[UDP_HLEN:])
 
-def __log_UDP_datagram(datagram: UDPDatagram):
+def __log_UDP_datagram(datagram):
     logging.debug(
         "\n+-----------------------------------------------------------------------------+\n"
         "UDP Datagram\n"

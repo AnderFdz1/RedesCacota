@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
     practica3.py
     Envía datagramas UDP o ICMP sobre protocolo IP. 
@@ -5,8 +6,6 @@
     Autor: Javier Ramos <javier.ramos@uam.es>
     2022 EPS-UAM
 '''
-
-
 from udp import *
 from icmp import *
 from ip import PAIR_NUM
@@ -40,7 +39,7 @@ if __name__ == "__main__":
 	parser.add_argument('--addOptions', dest='addOptions', default=False, action='store_true',help='Añadir opciones a los datagranas IP')
 	parser.add_argument('--dataFile',dest='dataFile',default = False,help='Fichero con datos a enviar')
 	#NOTE: Opción --icmpsize
-	parser.add_argument('--icmpsize',dest='icmpSize',default = 12,help='Tamaño del paquete ICMP. Debe ser mayor que 0.')
+	parser.add_argument('--icmpsize',dest='icmpSize',default = 12, type=int, help='Tamaño del paquete ICMP. Debe ser mayor que 0.')
 
 	args = parser.parse_args()
 
@@ -68,7 +67,8 @@ if __name__ == "__main__":
 	if args.addOptions:
 		ipOpts = ipRROption
 
-	udp_data = bytes([0,6,1,0,0,1,0,0,0,0,0,0,3,0x77,0x77,0x77,6,0x67,0x6f,0x6f,0x67,0x6c,0x65,3,0x63,0x6f,0x6d,0,0,1,0,1])
+	# En bytes: b'\x00\x06\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x03www\x06google\x03com\x00\x00\x01\x00\x01'
+	udp_data = bytes([0,6,1,0,0,1,0,0,0,0,0,0,3,0x77,0x77,0x77,6,0x67,0x6f,0x6f,0x67,0x6c,0x65,3,0x63,0x6f,0x6d,0,0,1,0,1])  
 	if args.dataFile:
 		with open(args.dataFile,'r') as f:
 			#Leemos el contenido del fichero
